@@ -1,0 +1,16 @@
+# RStudio temporary files
+.Rhistory
+.RData
+.Ruserdata
+.Rproj.user/
+
+# Environment variables and secrets
+.Renviron
+
+# R Markdown temporary files
+*_cache/
+*_files/
+
+# System files
+.DS_Store
+Thumbs.db
