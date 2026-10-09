@@ -1,10 +1,4 @@
 # MLB-2025-Project-What-Make-a-Good-Hitter-
-An R-based statistical analysis of 2025 MLB hitting performance, exploring relationships between traditional and advanced batting metrics using data visualization, correlation analysis, and linear regression.
-
-What Makes a Good MLB Hitter?
-
-An R-Based Analysis of the 2025 MLB Season
-
 Status: Work in Progress
 
 Project Overview
