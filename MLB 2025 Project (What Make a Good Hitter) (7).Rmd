@@ -1,0 +1,473 @@
+---
+title: "MLB 2025 Project (What Make a Good Hitter)"
+author: "Borna Anic-Matic"
+date: "2026-10-09"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Section 1: wRC+ vs Batting Avearge
+```{r}
+install.packages(c("tidyverse", "baseballr", "car"))
+library(tidyverse)
+library(baseballr)
+library('car')
+```
+```{r}
+# Retrieve 2025 MLB batting statistics
+batting_2025 <- fg_batter_leaders(
+  startseason = "2025",
+  endseason = "2025",
+  qual = "200"
+)
+```
+
+```{r}
+head(batting_2025)
+```
+```{r}
+summary(batting_2025)
+```
+```{r}
+dim(batting_2025)
+```
+```{r}
+names(batting_2025)
+```
+
+```{r}
+glimpse(batting_2025)
+```
+```{r}
+#Ranking Players by wRC+
+
+wrc_leaders <- batting_2025 %>% arrange(desc(wRC_plus)) %>% select(PlayerName, PA, AVG, OBP,
+         SLG, HR, wRC_plus) %>% head(10)
+
+wrc_leaders
+
+
+```
+
+```{r}
+# Scatterplot wRC+ vs Avg
+
+ggplot(batting_2025,
+       aes(x = AVG, y = wRC_plus)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(
+    title = "Does Batting Average Explain Hitting?",
+    subtitle = "2025 MLB hitters, minimum 200 PA",
+    x = "Batting Average",
+    y = "wRC+"
+  ) +
+  theme_minimal()
+```
+```{r}
+avg_cor <- cor(
+  batting_2025$AVG,
+  batting_2025$wRC_plus,
+  use = "complete.obs"
+)
+```
+
+```{r}
+r_squ_avg <- (avg_cor)^2
+r_squ_avg
+```
+
+Batting average and wRC+ show a strong positive correlation, with a Pearson correlation coefficient of approximately 0.7314. This suggests that players with higher batting averages tend to have higher wRC+ values. However, this relationship is not surprising, as both statistics are partly based on the same hitting outcomes.
+
+While batting average provides useful information about a hitter's ability to record hits, it does not account for walks or distinguish between singles and extra-base hits. As a result, players with similar batting averages may have substantially different wRC+ values. This suggests that batting average alone may not be enough to evaluate a player's overall offensive performance.
+
+The R-squared value of approximately 0.535 indicates that batting average accounts for 53.5% of the observed variation in wRC+ in our simple linear regression model. This leaves approximately 46.5% of the variation unexplained by the model, suggesting that other offensive statistics may provide additional information about a hitter's performance.
+
+## Is OBP A better indicator than Batting Average
+
+Null Hypothesis: OBP will have a stronger positive correlation with wRC+ because it accounts for additional ways a hitter can reach base, particularly walks and hit-by-pitches.
+
+*One important consideration: wRC+ itself incorporates the value of reaching base, so we are comparing related measures rather than testing entirely independent characteristics.*
+
+```{r}
+obp_cor <- cor(batting_2025$OBP, batting_2025$wRC_plus)
+obp_cor
+```
+
+```{r}
+plot_obp <- ggplot(
+  batting_2025,
+  aes(x = OBP, y = wRC_plus)
+) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(
+    title = "On-Base Percentage vs wRC+",
+    x = "On-Base Percentage",
+    y = "wRC+"
+  ) +
+  theme_minimal()
+
+plot_obp
+```
+```{r}
+r_squ_obp <- obp_cor^2
+r_squ_obp
+```
+## Comparing OPS vs Batting Avg Using Linear Models
+
+```{r}
+# Linear regression using batting average
+model_avg <- lm(
+  wRC_plus ~ AVG,
+  data = batting_2025
+)
+
+# Linear regression using OPS
+model_obp <- lm(wRC_plus ~ OBP, data = batting_2025)
+
+# Compare R-squared values
+summary(model_avg)$r.squared
+summary(model_obp)$r.squared
+
+```
+
+```{r}
+# Compare AVG and OBP
+comparison <- tibble(
+  Statistic = c("AVG", "OBP"),
+  Correlation = c(avg_cor, obp_cor),
+  R_squared = c(
+    summary(model_avg)$r.squared,
+    summary(model_obp)$r.squared
+  )
+)
+
+print(comparison)
+```
+Given the data, both batting average (AVG) and on-base percentage (OBP) show strong positive correlations with wRC+. However, OBP has a stronger correlation, with a Pearson correlation coefficient of 0.878 compared to 0.731 for batting average.
+
+Batting average also has a lower R-squared value of 0.535, while OBP has an R-squared value of 0.771. This means that OBP accounts for approximately 77.1% of the observed variation in wRC+ in the simple linear regression model, while batting average accounts for approximately 53.5%.
+
+OBP likely has a stronger relationship with wRC+ because it includes offensive events that batting average does not, such as walks and hit-by-pitches. Alongside hits, these events contribute to a player's ability to reach base and ultimately produce runs, which is reflected in wRC+.
+
+One limitation of this analysis is that OBP and batting average share some of the same underlying components. Additionally, both statistics overlap with the offensive events used to calculate wRC+, meaning that some correlation is expected. While OBP demonstrates a stronger relationship with wRC+ than batting average, it still does not fully capture a hitter's offensive production. In particular, OBP does not distinguish between singles and extra-base hits. This suggests that incorporating a measure of hitting power, such as slugging percentage (SLG), may help explain additional variation in wRC+.
+
+## Section 3: The Role of Power in Offensive Production
+
+```{r}
+# Summary statistics for power metrics
+summary(batting_2025$SLG)
+summary(batting_2025$ISO)
+
+```
+
+```{r}
+# Correlations with wRC+
+slg_cor <- cor(
+  batting_2025$SLG,
+  batting_2025$wRC_plus,
+  use = "complete.obs"
+)
+
+iso_cor <- cor(
+  batting_2025$ISO,
+  batting_2025$wRC_plus,
+  use = "complete.obs"
+)
+
+slg_cor
+iso_cor
+```
+
+```{r}
+# SLG vs wRC+
+plot_slg <- ggplot(
+  batting_2025,
+  aes(x = SLG, y = wRC_plus)
+) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(
+    title = "Slugging Percentage vs wRC+",
+    x = "Slugging Percentage",
+    y = "wRC+"
+  ) +
+  theme_minimal()
+
+# ISO vs wRC+
+plot_iso <- ggplot(
+  batting_2025,
+  aes(x = ISO, y = wRC_plus)
+) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(
+    title = "Isolated Power vs wRC+",
+    x = "Isolated Power",
+    y = "wRC+"
+  ) +
+  theme_minimal()
+
+# Display both plots
+plot_slg
+plot_iso
+```
+
+```{r}
+# Model 3: Slugging percentage
+model_slg <- lm(
+  wRC_plus ~ SLG,
+  data = batting_2025
+)
+
+# Model 4: Isolated power
+model_iso <- lm(
+  wRC_plus ~ ISO,
+  data = batting_2025
+)
+
+# View model summaries
+summary(model_slg)
+summary(model_iso)
+```
+
+```{r}
+# Standardized regression for SLG
+model_slg_std <- lm(
+  scale(wRC_plus) ~ scale(SLG),
+  data = batting_2025
+)
+
+# Standardized regression for ISO
+model_iso_std <- lm(
+  scale(wRC_plus) ~ scale(ISO),
+  data = batting_2025
+)
+
+coef(model_slg_std)
+coef(model_iso_std)
+```
+Both slugging percentage (SLG) and isolated power (ISO) show strong positive correlations with wRC+. However, SLG has a stronger relationship, with a Pearson correlation coefficient of approximately 0.910 compared to 0.739 for ISO.
+
+The regression results support this finding. SLG has an R-squared value of 0.827, meaning it accounts for approximately 82.7% of the observed variation in wRC+ in our simple linear regression model. In comparison, ISO has an R-squared value of 0.546, accounting for approximately 54.6% of the variation.
+
+One possible explanation for this difference is that SLG combines batting average and isolated power, while ISO focuses specifically on extra-base hitting. Since batting average already demonstrated a strong positive relationship with wRC+, it makes sense that SLG would also show a strong relationship.
+
+However, these findings do not necessarily mean that isolated power is less important to offensive production. Both statistics share underlying components with wRC+, meaning some correlation is expected. Additionally, examining each statistic separately does not tell us how much additional information it provides when other offensive measures are considered.
+
+## Section 4: 
+
+Our research hypothesis is: Combining OBP and ISO in a multiple linear regression model will explain more variation in wRC+ than using either statistic individually.
+
+```{r}
+# Multiple linear regression using OBP and ISO
+model_combined <- lm(
+  wRC_plus ~ OBP + ISO,
+  data = batting_2025
+)
+
+# Display model results
+summary(model_combined)
+```
+### Initial Multiple Regression Results
+
+The multiple linear regression model combining on-base percentage (OBP) and isolated power (ISO) produced an R-squared value of 0.9628. This means the model accounts for approximately 96.3% of the observed variation in wRC+ among hitters in the 2025 MLB dataset. This is a considerable improvement over the individual models, where OBP accounted for 77.1% and ISO accounted for 54.6% of the variation.
+
+Both variables also demonstrated positive regression coefficients. Holding ISO constant, a 0.010 increase in OBP was associated with an estimated increase of 5.07 wRC+ points. Similarly, holding OBP constant, a 0.010 increase in ISO was associated with an estimated increase of 2.21 wRC+ points. This suggests that both reaching base and hitting for extra bases provide useful information when examining offensive performance.
+
+However, the high R-squared value should be interpreted carefully. OBP and ISO are calculated using offensive events that also contribute to wRC+. Therefore, the model's strong fit is partly expected and does not necessarily indicate that it can predict future hitting performance with the same accuracy.
+
+### Testing for Multicollinearity
+
+```{r}
+# Correlation between OBP and ISO
+cor_obp_iso <- cor(
+  batting_2025$OBP,
+  batting_2025$ISO,
+  use = "complete.obs"
+)
+
+cor_obp_iso
+```
+```{r}
+vif(model_combined)
+```
+To examine whether multicollinearity was a concern in the multiple regression model, the relationship between OBP and ISO was assessed using Pearson's correlation coefficient and the Variance Inflation Factor (VIF).
+
+The correlation between OBP and ISO was approximately 0.379, indicating a moderate positive relationship. This suggests that players with higher on-base percentages tend to have somewhat higher isolated power, although the relationship is not particularly strong.
+
+Both variables also produced a VIF of approximately 1.168, which is well below commonly used thresholds for problematic multicollinearity. This suggests that the relationship between OBP and ISO does not substantially inflate the uncertainty of their regression coefficients.
+
+Overall, multicollinearity does not appear to be a major concern in the combined model. This supports interpreting the separate associations of OBP and ISO with wRC+, although it does not establish causation or guarantee the model's predictive accuracy.
+
+### Residual Diagnostics
+
+```{r}
+# Display the four standard diagnostic plots
+par(mfrow = c(2, 2))
+
+plot(model_combined)
+
+# Return to the normal plotting layout
+par(mfrow = c(1, 1))
+```
+```{r}
+# Extract model residuals
+model_residuals <- residuals(model_combined)
+
+# Summary statistics
+summary(model_residuals)
+
+# Standard deviation of residuals
+sd(model_residuals)
+
+# Identify the largest absolute residuals
+sort(abs(model_residuals),
+     decreasing = TRUE)[1:10]
+```
+```{r}
+# Add predictions and residuals to our data
+diagnostic_data <- batting_2025 %>%
+  mutate(
+    predicted_wRC = predict(model_combined),
+    residual = residuals(model_combined)
+  )
+
+# Find the 10 largest absolute residuals
+diagnostic_data %>%
+  mutate(abs_residual = abs(residual)) %>%
+  arrange(desc(abs_residual)) %>%
+  select(
+    PlayerName, OBP, ISO,
+    wRC_plus, predicted_wRC, residual
+  ) %>%
+  head(10)
+```
+Residual diagnostics were conducted to evaluate the assumptions of the multiple linear regression model using OBP and ISO.
+
+The residuals versus fitted values plot shows that most observations are distributed around zero, although a slight curved pattern is present. This suggests that the model may not fully capture the relationship between the predictors and wRC+ across all levels of offensive performance.
+
+The normal Q-Q plot shows that most residuals approximately follow the expected normal distribution, with some deviations at the extremes. Additionally, the scale-location plot suggests that residual variability may increase slightly at higher predicted wRC+ values, indicating possible heteroscedasticity.
+
+The residual analysis identified several players whose observed wRC+ differed substantially from the model's predictions. Michael Toglia had the largest negative residual at approximately −17.46, while Dominic Canzone had the largest positive residual at approximately +14.16.
+
+Overall, the model demonstrates a strong fit to the observed data, but the diagnostic plots suggest some limitations regarding linearity and constant variance. Further investigation of influential observations is necessary before drawing stronger conclusions about the model's reliability.
+```{r}
+# Calculate Cook's distance
+diagnostic_data <- batting_2025 %>%
+  mutate(
+    cooks_d = cooks.distance(model_combined),
+    leverage = hatvalues(model_combined)
+  )
+
+# Find the most potentially influential hitters
+diagnostic_data %>%
+  arrange(desc(cooks_d)) %>%
+  select(PlayerName, OBP, ISO,
+         wRC_plus, cooks_d, leverage) %>%
+  head(10)
+```
+```{r}
+# Fit the same model excluding Aaron Judge
+model_without_judge <- lm(
+  wRC_plus ~ OBP + ISO,
+  data = batting_2025 %>%
+    filter(PlayerName != "Aaron Judge")
+)
+
+# Compare regression coefficients
+coef(model_combined)
+coef(model_without_judge)
+
+# Compare R-squared values
+summary(model_combined)$r.squared
+summary(model_without_judge)$r.squared
+```
+A sensitivity analysis was conducted to determine whether Aaron Judge, the observation with the highest Cook's distance, had a substantial influence on the multiple regression model.
+
+After removing Judge from the dataset, the OBP coefficient increased from approximately 507.00 to 510.25, while the ISO coefficient increased from 220.77 to 222.43. The model's R-squared value decreased slightly from 0.9628 to 0.9617.
+
+These relatively small changes suggest that the model's overall findings are not heavily dependent on Judge's observation. Although Judge was identified as an influential player, his inclusion does not substantially change the estimated relationships between OBP, ISO, and wRC+.
+
+Overall, the combined regression model demonstrates a strong fit to the 2025 MLB data, with limited concerns regarding multicollinearity and reasonable stability when excluding its most influential observation. However, the residual diagnostics revealed some possible departures from linearity and constant variance. Additionally, because the predictors share underlying components with wRC+, the model's strong same-season fit should not be interpreted as evidence of its ability to predict future performance.
+
+## Section 5: Model Evaluation and Baseball Implications
+
+```{r}
+models <- list(
+  AVG = model_avg,
+  OBP = model_obp,
+  SLG = model_slg,
+  ISO = model_iso,
+  "OBP + ISO" = model_combined
+)
+
+# Create a comparison table
+model_comparison <- tibble(
+  Model = names(models),
+  R_squared = sapply(
+    models,
+    function(m) summary(m)$r.squared
+  ),
+  Adjusted_R_squared = sapply(
+    models,
+    function(m) summary(m)$adj.r.squared
+  ),
+  Residual_SE = sapply(
+    models,
+    function(m) sigma(m)
+  )
+)
+
+# Display rounded results
+model_comparison %>%
+  mutate(across(where(is.numeric), ~ round(.x, 4)))
+```
+```{r}
+
+# Compare model R-squared values
+ggplot(
+  model_comparison,
+  aes(x = reorder(Model, R_squared),
+      y = R_squared)
+) +
+  geom_col(fill = "steelblue") +
+  coord_flip() +
+  geom_text(
+    aes(label = round(R_squared, 3)),
+    hjust = -0.15
+  ) +
+  scale_y_continuous(limits = c(0, 1)) +
+  labs(
+    title = "Comparing In-Sample Regression Model Fit",
+    subtitle = "2025 MLB Hitters",
+    x = "Regression Model",
+    y = "R-squared"
+  ) +
+  theme_minimal()
+```
+### Comparing Offensive Metrics
+
+The five regression models were compared using R-squared, adjusted R-squared, and residual standard error to determine which offensive statistics best accounted for variation in wRC+ during the 2025 MLB season.
+
+Among the individual statistics, slugging percentage (SLG) demonstrated the strongest relationship with wRC+, producing an R-squared value of 0.8273. On-base percentage (OBP) followed with a value of 0.7705, while isolated power (ISO) and batting average (AVG) had considerably lower values of 0.5456 and 0.5350, respectively.
+
+However, the multiple regression model combining OBP and ISO provided the strongest overall fit, with an R-squared of 0.9628 and an adjusted R-squared of 0.9626. The combined model also had the lowest residual standard error at approximately 4.92 wRC+ points.
+
+These findings suggest that incorporating both on-base ability and extra-base hitting power provides a more complete description of offensive performance than using either measure alone. However, because the predictors and wRC+ share underlying offensive components, the strong relationships are partly expected and should not be interpreted as evidence of causation or future predictive accuracy.
+
+### Final Conclusion
+
+The results of this analysis suggest that evaluating a hitter's offensive performance requires looking beyond batting average alone. While batting average demonstrated a strong positive relationship with wRC+, on-base percentage and slugging percentage showed stronger relationships. The multiple regression model combining OBP and ISO provided the strongest overall fit, accounting for approximately 96.3% of the observed variation in wRC+.
+
+However, this does not mean batting average is no longer useful. A player's ability to consistently record hits remains important, as hits can extend innings, advance runners, and create scoring opportunities. This is particularly valuable when combined with a player's ability to hit for power. Batting average therefore remains a useful measure of hitting performance, although it does not fully capture a player's offensive contributions.
+
+Overall, the findings highlight the importance of considering both a player's ability to reach base and their ability to generate extra bases. Rather than relying on one statistic, a more complete evaluation of offensive performance should incorporate several measures.
+
+There are also limitations to this analysis. The models use statistics from the same season, and many of these measures share underlying offensive components with wRC+. Additionally, the residual diagnostics identified some departures from the assumptions of linear regression. Therefore, the strong model fit should not be interpreted as evidence of causal relationships or an ability to predict future performance.
+
+Future research could build on these findings by examining whether offensive statistics from one season can predict a player's performance in the following season.
